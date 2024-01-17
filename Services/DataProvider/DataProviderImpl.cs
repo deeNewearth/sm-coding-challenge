@@ -34,8 +34,13 @@ namespace sm_coding_challenge.Services.DataProvider
             _logger = logger;
         }
 
+        static readonly JsonSerializerSettings _mySerializationSettings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
 
-
+        /// <summary>
+        /// Used to fetch data when cache expires
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         async Task<string> FetchData()
         {
 
@@ -66,7 +71,7 @@ namespace sm_coding_challenge.Services.DataProvider
 
             var playerMap = CreatePlayerMap(dataResponse);
 
-            mapStr = JsonConvert.SerializeObject(playerMap);
+            mapStr = JsonConvert.SerializeObject(playerMap, _mySerializationSettings);
 
             await _cache.SetStringAsync(_DataCacheName, mapStr, new DistributedCacheEntryOptions
             {
@@ -85,7 +90,7 @@ namespace sm_coding_challenge.Services.DataProvider
         {
             var mapStr = await FetchData();
 
-            return JsonConvert.DeserializeObject<Dictionary<string, PlayerAndPosition[]>>(mapStr);
+            return JsonConvert.DeserializeObject<Dictionary<string, PlayerAndPosition[]>>(mapStr, _mySerializationSettings);
         }
 
 
