@@ -20,7 +20,7 @@ namespace sm_coding_challenge.Services.DataProvider
         readonly ILogger _logger;
 
 
-        static readonly string _DataCacheName = "PlayerDataStr";
+        static readonly string _DataCacheName = "PlayerMapStr";
 
         // dee: injecting HttpClient instead of creating it each time
         public DataProviderImpl(
@@ -34,60 +34,63 @@ namespace sm_coding_challenge.Services.DataProvider
             _logger = logger;
         }
 
-        static readonly IReadOnlyDictionary<string, PlayerModel> _playersMap = new Dictionary<string, PlayerModel> { };
 
-        public async Task<DataResponseModel> FetchData()
+
+        async Task<string> FetchData()
         {
-            var dataInCache = true;
-            
-            var stringData = await _cache.GetStringAsync(_DataCacheName);
 
-            if (string.IsNullOrWhiteSpace(stringData))
-            {
-                _logger.LogDebug("dataNotInCache");
-                dataInCache = false;
-                using var response = await _client.GetAsync("https://gist.githubusercontent.com/RichardD012/a81e0d1730555bc0d8856d1be980c803/raw/3fe73fafadf7e5b699f056e55396282ff45a124b/basic.json");
 
-                // dee : Making sure we have a success code
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogError("failedToFetchData {0}", response.StatusCode);
-                    throw new Exception("failedToFetchData");
-                }
+            var mapStr = await _cache.GetStringAsync(_DataCacheName);
 
-                stringData = response.Content.ReadAsStringAsync().Result;
-            }
-            else
+            if (!string.IsNullOrWhiteSpace(mapStr))
             {
                 _logger.LogDebug("dataInCache");
+                return mapStr;
             }
 
 
-            // dee: We always deserialize the data before saving to cache to Ensure we got good data
+            _logger.LogDebug("dataNotInCache");
+
+            using var response = await _client.GetAsync("https://gist.githubusercontent.com/RichardD012/a81e0d1730555bc0d8856d1be980c803/raw/3fe73fafadf7e5b699f056e55396282ff45a124b/basic.json");
+
+            // dee : Making sure we have a success code
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("failedToFetchData {0}", response.StatusCode);
+                throw new Exception("failedToFetchData");
+            }
+
+            var stringData = response.Content.ReadAsStringAsync().Result;
+
             var dataResponse = JsonConvert.DeserializeObject<DataResponseModel>(stringData, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Auto });
 
-            if (!dataInCache)
+            var playerMap = CreatePlayerMap(dataResponse);
+
+            mapStr = JsonConvert.SerializeObject(playerMap);
+
+            await _cache.SetStringAsync(_DataCacheName, mapStr, new DistributedCacheEntryOptions
             {
-                // dee : This data set is not updated very frequently (once a week), So we cache it for 6 days
-                await _cache.SetStringAsync(_DataCacheName, stringData, new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(6)
-                });
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(6)
+            });
 
-                _logger.LogDebug("dataSavedInCache");
-            }
+            _logger.LogDebug("dataSavedInCache");
 
 
-            return dataResponse;
+            return mapStr;
 
         }
 
-        public enum Position { Kicking , Passing , Receiving , Rushing }
 
         public async Task<IDictionary<string, PlayerAndPosition[]>> GetPlayerMap()
         {
-            var dataResponse = await FetchData();
+            var mapStr = await FetchData();
 
+            return JsonConvert.DeserializeObject<Dictionary<string, PlayerAndPosition[]>>(mapStr);
+        }
+
+
+        Dictionary<string, PlayerAndPosition[]> CreatePlayerMap(DataResponseModel dataResponse)
+        {
             var allPlayers =
                 dataResponse.Kicking.Select(player => new PlayerAndPosition { Position = PlayPosition.kicking, Player = player })
                 .Concat(dataResponse.Passing.Select(player => new PlayerAndPosition { Position = PlayPosition.passing, Player = player }))
@@ -96,14 +99,12 @@ namespace sm_coding_challenge.Services.DataProvider
                 .ToArray();
 
 
-            var playersMap = (from p in allPlayers
+            return (from p in allPlayers
                               group p by p.Player.Id into g
                               select new { id = g.Key, playersAndPosition = g.ToArray() })
                      .ToDictionary(k => k.id, v => v.playersAndPosition)
 
                      ;
-
-            return playersMap;
 
         }
 

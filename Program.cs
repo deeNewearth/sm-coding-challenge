@@ -25,7 +25,7 @@ builder.Services.AddControllersWithViews().AddNewtonsoftJson(o =>
 });
 
 
-builder.Services.AddTransient<IDataProvider, DataProviderImpl>();
+builder.Services.AddSingleton<IDataProvider, DataProviderImpl>();
 
 // dee: adding Polly HttpClient To implement http backoff with exponential backoff
 builder.Services.AddHttpClient<IDataProvider, DataProviderImpl>()
