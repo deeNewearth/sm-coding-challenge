@@ -7,9 +7,24 @@ using System;
 using System.Net.Http;
 using Polly;
 using Polly.Extensions.Http;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllersWithViews();
+
+// dee : We want to use NewtonsoftJson as the default JSON converter,
+// that way The JSON sent out by API will reflect derived classes and not just base classes
+builder.Services.AddControllersWithViews().AddNewtonsoftJson(o =>
+{
+    o.SerializerSettings.Converters.Add(new StringEnumConverter
+    {
+        //CamelCaseText = true,//absolete
+        NamingStrategy = new CamelCaseNamingStrategy()
+    });
+
+});
+
+
 builder.Services.AddTransient<IDataProvider, DataProviderImpl>();
 
 // dee: adding Polly HttpClient To implement http backoff with exponential backoff

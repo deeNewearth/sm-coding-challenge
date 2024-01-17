@@ -19,16 +19,16 @@ namespace sm_coding_challenge.Models
         public string SeasonId { get; set; }
 
         [DataMember(Name = "rushing")]
-        public List<PlayerModel> Rushing { get; set; }
+        public List<RushingPlayer> Rushing { get; set; }
 
         [DataMember(Name = "passing")]
-        public List<PlayerModel> Passing { get; set; }
+        public List<PassingPlayer> Passing { get; set; }
 
         [DataMember(Name = "receiving")]
-        public List<PlayerModel> Receiving { get; set; }
+        public List<ReceivingPlayer> Receiving { get; set; }
 
         [DataMember(Name = "kicking")]
-        public List<PlayerModel> Kicking { get; set; }
+        public List<KickingPlayer> Kicking { get; set; }
 
         public DataResponseModel()
         {
