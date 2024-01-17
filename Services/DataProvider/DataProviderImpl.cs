@@ -83,30 +83,39 @@ namespace sm_coding_challenge.Services.DataProvider
         }
 
         public enum Position { Kicking , Passing , Receiving , Rushing }
-        
 
-        public async Task<PlayerModel> GetPlayerById(string id)
+        public async Task<IDictionary<string, PlayerAndPosition[]>> GetPlayerMap()
         {
             var dataResponse = await FetchData();
 
             var allPlayers =
-                dataResponse.Kicking.Select(player=>new { position = Position.Kicking, player})
-                .Concat(dataResponse.Passing.Select(player => new { position = Position.Passing, player }))
-                .Concat(dataResponse.Receiving.Select(player => new { position = Position.Receiving, player }))
-                .Concat(dataResponse.Rushing.Select(player => new { position = Position.Rushing, player }))
+                dataResponse.Kicking.Select(player => new PlayerAndPosition { Position = PlayPosition.kicking, Player = player })
+                .Concat(dataResponse.Passing.Select(player => new PlayerAndPosition { Position = PlayPosition.passing, Player = player }))
+                .Concat(dataResponse.Receiving.Select(player => new PlayerAndPosition { Position = PlayPosition.receiving, Player = player }))
+                .Concat(dataResponse.Rushing.Select(player => new PlayerAndPosition { Position = PlayPosition.rushing, Player = player }))
                 .ToArray();
 
 
             var playersMap = (from p in allPlayers
-                     group p by p.player.Id into g
-                     select new {id = g.Key, playersAndPosition = g.ToArray() })
-                     .ToDictionary(k=>k.id, v=>v.playersAndPosition)
-                     
+                              group p by p.Player.Id into g
+                              select new { id = g.Key, playersAndPosition = g.ToArray() })
+                     .ToDictionary(k => k.id, v => v.playersAndPosition)
+
                      ;
+
+            return playersMap;
+
+        }
+
+
+
+        public async Task<PlayerModel> GetPlayerById(string id)
+        {
+            var playersMap = await GetPlayerMap();
 
             if (playersMap.TryGetValue(id,out var playerAndPos))
             {
-                return playerAndPos.First().player;
+                return playerAndPos.First().Player;
             }
             else
             {
